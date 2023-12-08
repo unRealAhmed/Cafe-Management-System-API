@@ -1,4 +1,6 @@
 const { DataTypes } = require('sequelize');
+const bcrypt = require('bcryptjs');
+
 const sequelize = require('../DB/DBConnection');
 
 const User = sequelize.define('User', {
@@ -35,5 +37,25 @@ const User = sequelize.define('User', {
 });
 
 // sequelize.sync({ force: false })
+
+// Helper function to hash the password
+const hashPassword = async (user, options) => {
+  if (user.changed('password')) {
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(user.password, salt);
+    user.password = hashedPassword;
+  }
+};
+
+// Hash password before creating or updating user
+User.beforeCreate(async (user, options) => {
+  await hashPassword(user, options);
+});
+
+User.beforeUpdate(async (user, options) => {
+  if (user.changed('password')) {
+    await hashPassword(user, options);
+  }
+});
 
 module.exports = User;

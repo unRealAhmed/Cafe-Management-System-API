@@ -1,7 +1,7 @@
 const asyncHandler = require('../util/asyncHandler');
 const AppError = require('../util/appErrors');
 const createToken = require('../util/createToken');
-const { hashPassword } = require('../util/passwordHash');
+// const { hashPassword } = require('../util/passwordHash');
 const User = require('../models/User');
 // Helper function to send JWT token as a response
 const sendTokenResponse = (res, user, statusCode) => {
@@ -23,22 +23,15 @@ exports.signUp = asyncHandler(async (req, res, next) => {
   if (!name || !email || !password) {
     return next(new AppError('Name, email, and password are required.', 400));
   }
+  const newUser = await User.create({
+    name,
+    email,
+    password,
+    role: 'user',
+  });
 
-  try {
-    // Hash the password
-    const hashedPassword = await hashPassword(password);
-    // Create a new user using Sequelize
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'user',
-    });
-    // Send token response
-    sendTokenResponse(res, newUser, 201);
-  } catch (error) {
-    // Let the centralized error handler deal with specific errors
-    return next(error);
-  }
+  // Send token response
+  sendTokenResponse(res, newUser, 201);
+
 });
 
