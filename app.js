@@ -3,9 +3,12 @@ const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser');
 require('./DB/DBConnection')
+// require('./DB/DBSync')
 const errorController = require('./controllers/errorController')
 const userRouter = require('./routes/userRoutes')
+const categoryRouter = require('./routes/categoryRoutes');
 
+//
 const app = express()
 
 app.use(cors())
@@ -16,6 +19,7 @@ app.use(express.json())
 //ROUTES
 
 app.use('/users', userRouter)
+app.use('/category', categoryRouter)
 
 // Error Handling Middleware: Handle requests for undefined routes
 app.all("*", (req, _, next) => {
