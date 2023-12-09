@@ -21,10 +21,6 @@ const Bill = sequelize.define('Bill', {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  contactNumber: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
-  },
   paymentMethod: {
     type: DataTypes.STRING(50),
     allowNull: false,
@@ -36,10 +32,6 @@ const Bill = sequelize.define('Bill', {
   productDetails: {
     type: DataTypes.JSON,
     defaultValue: null,
-  },
-  createdBy: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
   },
 }
 );
