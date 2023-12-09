@@ -25,7 +25,7 @@ Explore the [Postman Collection](https://www.postman.com/mission-cosmonaut-25659
 ## Documentation
 
 - **API Documentation:**
-  - Find detailed API documentation in [CafeDoc.html](./documentation/CafeDoc.html).
+  - Find detailed API documentation in [CafeDoc.html].
 
 ## Error Handling and Schema Validation
 
