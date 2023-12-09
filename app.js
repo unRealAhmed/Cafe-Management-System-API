@@ -8,8 +8,11 @@ const errorController = require('./controllers/errorController')
 const userRouter = require('./routes/userRoutes')
 const categoryRouter = require('./routes/categoryRoutes');
 const productRouter = require('./routes/productRoutes');
+const billRouter = require('./routes/billRoutes');
 
-//
+
+//Middlewares
+
 const app = express()
 
 app.use(cors())
@@ -22,6 +25,7 @@ app.use(express.json())
 app.use('/users', userRouter)
 app.use('/category', categoryRouter)
 app.use('/products', productRouter)
+app.use('/bills', billRouter)
 
 // Error Handling Middleware: Handle requests for undefined routes
 app.all("*", (req, _, next) => {
