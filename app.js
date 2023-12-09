@@ -1,6 +1,10 @@
 require('dotenv').config({ path: './config.env' })
 const express = require('express')
 const cors = require('cors')
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const xss = require("xss-clean");
+const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 require('./DB/DBConnection')
 // require('./DB/DBSync')
@@ -14,12 +18,18 @@ const billRouter = require('./routes/billRoutes');
 //Middlewares
 
 const app = express()
-
+app.use(helmet()); // Set various HTTP headers for security
+app.use(xss()); // Prevent XSS attacks
+app.use(hpp());
 app.use(cors())
 app.use(cookieParser(process.env.JWT_SECRET_KEY));
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
-
+app.use('/api', rateLimit({
+  max: 200,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  message: 'Too many requests from this IP, please try again in an hour!'
+}));
 //ROUTES
 
 app.use('/users', userRouter)
