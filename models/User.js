@@ -1,5 +1,7 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
 const sequelize = require('../DB/DBConnection');
 
 const User = sequelize.define('User', {
@@ -29,19 +31,11 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('admin', 'user'),
     defaultValue: 'user',
   },
-  passwordChangedAt: {
-    type: DataTypes.DATE,
-  },
-  passwordResetToken: {
-    type: DataTypes.STRING,
-  },
-  passwordResetExpires: {
-    type: DataTypes.DATE,
-  },
+  passwordChangedAt: DataTypes.DATE,
+  passwordResetToken: DataTypes.STRING,
+  passwordResetExpires: DataTypes.DATE,
 }, {
   timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
 });
 
 // sequelize.sync({ force: false })
@@ -80,6 +74,23 @@ User.beforeUpdate(async (user, options) => {
     await hashPassword(user, options);
   }
 });
+
+// Method to create a password reset token
+User.prototype.createPasswordResetToken = function () {
+  // Generate a random reset token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash the token and set it on the user
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
+
 
 
 module.exports = User;

@@ -1,9 +1,13 @@
 const { promisify } = require('util');
+const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const asyncHandler = require('../util/asyncHandler');
 const AppError = require('../util/appErrors');
 const createToken = require('../util/createToken');
+const Email = require('../util/email');
+const { resetHtmlTemplate } = require('../util/resetPasswordTemplate')
 // const { hashPassword } = require('../util/passwordHash');
 
 
@@ -36,8 +40,18 @@ exports.signUp = asyncHandler(async (req, res, next) => {
 
   newUser.password = undefined;
 
-  // Send token response
-  sendTokenResponse(res, newUser, 201);
+  const url = `${req.protocol}://${req.get('host')}/me`;
+  const welcomeEmail = new Email(newUser, url);
+
+  // Send welcome email asynchronously
+  welcomeEmail.sendWelcomeEmail()
+    .then(() => {
+      sendTokenResponse(res, newUser, 201);
+    })
+    .catch((error) => {
+      console.error('Error sending welcome email:', error);
+      sendTokenResponse(res, newUser, 201);
+    });
 });
 
 
@@ -116,3 +130,119 @@ exports.protect = asyncHandler(async (req, res, next) => {
   req.user = currentUser;
   next();
 });
+
+// FORGET PASSWORD
+exports.forgetPassword = asyncHandler(async (req, res, next) => {
+  // 1) Find the user by their email
+  const user = await User.findOne({ where: { email: req.body.email } });
+  if (!user) {
+    return next(new AppError('There is no user with this email address.', 404));
+  }
+
+  // 2) Generate a password reset token and save it to the user
+  const resetToken = user.createPasswordResetToken();
+  await user.save();
+
+  // 3) Construct the reset URL and email it to the user
+  const resetURL = `${req.protocol}://${req.get('host')}/api/v1/users/resetPassword/${resetToken}`;
+  const html = resetHtmlTemplate(
+    req.protocol,
+    req.headers.host,
+    resetToken,
+  );
+
+  // Send the password reset email
+  const email = new Email(user, resetURL);
+
+  try {
+    await email.sendPasswordResetEmail(html);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Token sent to email.',
+    });
+  } catch (err) {
+    console.error(err);
+
+    // Reset user properties and send an error response
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    return next(
+      new AppError('There was an error sending the email. Please try again later.', 503)
+    );
+  }
+});
+
+// RESET PASSWORD
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  // 1) Decrypt the token and find the user
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    where: {
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { [Op.gt]: new Date() },
+    },
+  });
+
+  // 2) Check if the token is valid and not expired
+  if (!user) {
+    return next(new AppError('Token is invalid or has expired. Please request a new password reset.', 400));
+  }
+
+  // 3) Set the new password and clean up the reset token
+  user.password = password;
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+  await user.save();
+
+  user.password = undefined;
+
+  sendTokenResponse(res, user, 200);
+});
+
+// UPDATE PASSWORD
+exports.updatePassword = asyncHandler(async (req, res, next) => {
+  const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword || !newPassword) {
+    return next(new AppError('Please provide both values', 400));
+  }
+
+  // 1) Find the user by ID and select the password field
+  const user = await User.findByPk(req.user.id);
+
+  // 2) Check if the entered current password is correct
+  const isPasswordCorrect = await user.passwordMatching(oldPassword, user.password);
+
+  if (!isPasswordCorrect) {
+    return next(new AppError("Your current password is incorrect", 401));
+  }
+
+  // 3) Update the user's password with the new one and save the changes
+  user.password = newPassword;
+  await user.save();
+
+  user.password = undefined;
+
+  sendTokenResponse(res, user, 200);
+});
+
+//Restrict To
+exports.restrictTo = (...permittedRoles) => (req, res, next) => {
+  const userRole = req.user.role;
+
+  if (permittedRoles.includes(userRole)) {
+    // If the user's role is included in the permitted roles, grant access.
+    next();
+  } else {
+    // If the user's role is not included in the permitted roles, deny access.
+    const errorMessage = `You don't have permission to perform this action.`;
+    return res.status(403).json({ status: 'fail', message: errorMessage });
+  }
+};
