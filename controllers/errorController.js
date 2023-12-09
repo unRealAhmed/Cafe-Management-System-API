@@ -1,8 +1,8 @@
 const AppError = require('../util/appErrors');
 
 const handleValidationError = (err) => {
-  const errors = err.errors.map((e) => e.message);
-  const message = `Invalid input data. ${errors.join('. ')}`;
+  const errors = err.errors[0]
+  const message = `Invalid input data. ${errors}`;
   return new AppError(message, 400);
 };
 
@@ -40,7 +40,7 @@ module.exports = (err, req, res, next) => {
     let error = JSON.parse(JSON.stringify(err));
     error.message = err.message;
 
-    if (error.name === 'SequelizeValidationError') {
+    if (error.message === 'Validation failed') {
       error = handleValidationError(error);
     } else if (error.name === 'SequelizeUniqueConstraintError') {
       error = handleSequelizeUniqueConstraintError(error);
